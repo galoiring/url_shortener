@@ -1,44 +1,41 @@
-from django.http import JsonResponse, HttpResponseRedirect, HttpResponseNotFound
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-import json
+# shortener/views.py
+from django.http import JsonResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.shortcuts import render, redirect, get_object_or_404
 from .models import URL
+import json
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def create_short_url(request):
-    try:
+@ensure_csrf_cookie
+def home(request):
+    return render(request, 'shortener/home.html')
+
+
+def create_url(request):
+    if request.method == 'POST':
         data = json.loads(request.body)
-        original_url = data.get('url')
-
-        if not original_url:
-            return JsonResponse({'error': 'URL is required'}, status=400)
-
-        # Generate a unique short code
-        short_code = URL.generate_short_code()
-
-        # Create the URL object
-        url_obj = URL.objects.create(
-            original_url=original_url,
-            short_code=short_code
-        )
-
-        # Construct the short URL
-        short_url = f"http://localhost:8000/s/{short_code}"
-        return JsonResponse({'short_url': short_url})
-
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        url = data.get('url')
+        if url:
+            url_obj = URL.objects.create(original_url=url)
+            return JsonResponse({
+                'short_url': url_obj.short_url,
+                'original_url': url_obj.original_url
+            })
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
-def redirect_to_original(request, short_code):
-    try:
-        url_obj = URL.objects.get(short_code=short_code)
-        url_obj.hits += 1
-        url_obj.save()
-        return HttpResponseRedirect(url_obj.original_url)
-    except URL.DoesNotExist:
-        return HttpResponseNotFound("Short URL not found")
+def get_urls(request):
+    urls = URL.objects.all().order_by('-created_at')[:10]
+    return JsonResponse([{
+        'original_url': url.original_url,
+        'short_url': url.short_url,
+        'hits': url.hits,
+        'created_at': url.created_at.isoformat()
+    } for url in urls], safe=False)
+
+
+def redirect_url(request, short_url):
+    url_obj = get_object_or_404(URL, short_url=short_url)
+    url_obj.hits += 1
+    url_obj.save()
+    return redirect(url_obj.original_url)

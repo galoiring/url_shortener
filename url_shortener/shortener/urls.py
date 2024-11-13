@@ -2,7 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('create', views.create_short_url, name='create_short_url'),
-    path('s/<str:short_code>', views.redirect_to_original,
-         name='redirect_to_original'),
+    path('', views.home, name='home'),
+    path('api/create/', views.create_url, name='create_url'),
+    path('api/urls/', views.get_urls, name='get_urls'),
+    path('<str:short_url>/', views.redirect_url, name='redirect_url'),
 ]
