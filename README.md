@@ -97,7 +97,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📸 Screenshots
 
-[Add screenshots of your application here]
+<div align="center">
+  <figure>
+    <img src="docs/images/Screenshot 1.png" alt="URL Shortener Interface" width="800"/>
+    <figcaption>URL Shortener - Main Interface</figcaption>
+  </figure>
+</div>
 
 ## 🔮 Future Improvements
 
