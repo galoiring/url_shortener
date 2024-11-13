@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(to bottom, #f3f4f6, #e5e7eb);
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl p-6">
+        <h1 class="text-2xl font-bold text-center text-blue-600 mb-6">URL Shortener</h1>
+
+        <div class="flex items-center space-x-2 mb-4">
+            <input type="text" id="urlInput" placeholder="Enter your URL here (e.g., google.com)"
+                class="flex-grow p-2 border rounded">
+            <button id="shortenBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Shorten</button>
+        </div>
+
+        <div id="resultContainer" class="hidden bg-gray-100 p-3 rounded-md mb-4">
+            <a id="shortUrl" href="#" target="_blank" class="text-blue-600 hover:underline mr-2"></a>
+            <button id="copyBtn" class="text-gray-600 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+            </button>
+        </div>
+
+        <div id="errorContainer" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+            <p id="errorMessage"></p>
+        </div>
+
+        <div id="successContainer" class="hidden bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4"
+            role="alert">
+            <p id="successMessage"></p>
+        </div>
+
+        <div id="historyContainer" class="mt-8 hidden">
+            <h2 class="text-xl font-semibold mb-4">Recent Requests</h2>
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Original URL</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Short URL</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Created At</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Table rows will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const urlInput = document.getElementById('urlInput');
+            const shortenBtn = document.getElementById('shortenBtn');
+            const resultContainer = document.getElementById('resultContainer');
+            const shortUrl = document.getElementById('shortUrl');
+            const copyBtn = document.getElementById('copyBtn');
+            const errorContainer = document.getElementById('errorContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            const successContainer = document.getElementById('successContainer');
+            const successMessage = document.getElementById('successMessage');
+            const historyContainer = document.getElementById('historyContainer');
+            const historyTableBody = document.getElementById('historyTableBody');
+
+            let history = JSON.parse(localStorage.getItem('urlShortenerHistory')) || [];
+
+            function updateHistoryTable() {
+                historyTableBody.innerHTML = '';
+                history.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="py-3 px-4 whitespace-normal break-words max-w-[300px]">${item.originalUrl}</td>
+                        <td class="py-3 px-4 whitespace-normal break-words max-w-[200px]">
+                            <a href="${item.shortUrl}" target="_blank" class="text-blue-600 hover:underline">${item.shortUrl}</a>
+                        </td>
+                        <td class="py-3 px-4 whitespace-nowrap">${item.createdAt}</td>
+                        <td class="py-3 px-4 whitespace-nowrap">
+                            <button class="text-gray-600 hover:text-gray-800 mr-2 copy-btn" data-url="${item.shortUrl}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                            <button class="text-gray-600 hover:text-gray-800 delete-btn" data-id="${item.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </td>
+                    `;
+                    historyTableBody.appendChild(row);
+                });
+                historyContainer.style.display = history.length > 0 ? 'block' : 'none';
+            }
+
+            function addToHistory(originalUrl, shortUrl) {
+                const newItem = {
+                    id: Date.now().toString(),
+                    originalUrl,
+                    shortUrl,
+                    createdAt: new Date().toLocaleString()
+                };
+                history.unshift(newItem);
+                history = history.slice(0, 5);  // Keep only the 5 most recent items
+                localStorage.setItem('urlShortenerHistory', JSON.stringify(history));
+                updateHistoryTable();
+            }
+
+            function validateUrl(url) {
+                if (!/^(https?:\/\/)/i.test(url)) {
+                    url = 'http://' + url;
+                }
+
+                if (/^http:\/\/[^\/]+\.[^\/]+$/.test(url)) {
+                    url = url.replace('http://', 'http://www.');
+                }
+
+                try {
+                    const parsedUrl = new URL(url);
+                    return parsedUrl.href;
+                } catch {
+                    return false;
+                }
+            }
+
+            async function shortenUrl() {
+                const url = urlInput.value.trim();
+                const validUrl = validateUrl(url);
+
+                if (!validUrl) {
+                    showError('Please enter a valid URL (e.g., google.com or https://www.google.com)');
+                    return;
+                }
+
+                shortenBtn.disabled = true;
+                shortenBtn.textContent = 'Shortening...';
+
+                try {
+                    const response = await fetch('/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken'),
+                        },
+                        body: JSON.stringify({ url: validUrl })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        shortUrl.textContent = data.short_url;
+                        shortUrl.href = data.short_url;
+                        resultContainer.classList.remove('hidden');
+                        showSuccess('URL shortened successfully!');
+                        addToHistory(validUrl, data.short_url);
+                    } else {
+                        throw new Error(data.error || 'Failed to shorten URL');
+                    }
+                } catch (error) {
+                    showError(error.message);
+                } finally {
+                    shortenBtn.disabled = false;
+                    shortenBtn.textContent = 'Shorten';
+                }
+            }
+
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorContainer.classList.remove('hidden');
+                successContainer.classList.add('hidden');
+            }
+
+            function showSuccess(message) {
+                successMessage.textContent = message;
+                successContainer.classList.remove('hidden');
+                errorContainer.classList.add('hidden');
+            }
+
+            async function copyToClipboard(text) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showSuccess('Copied to clipboard!');
+                } catch (err) {
+                    showError('Failed to copy to clipboard');
+                }
+            }
+
+            shortenBtn.addEventListener('click', shortenUrl);
+
+            copyBtn.addEventListener('click', () => copyToClipboard(shortUrl.textContent));
+
+            historyTableBody.addEventListener('click', function (e) {
+                if (e.target.closest('.copy-btn')) {
+                    const url = e.target.closest('.copy-btn').dataset.url;
+                    copyToClipboard(url);
+                } else if (e.target.closest('.delete-btn')) {
+                    const id = e.target.closest('.delete-btn').dataset.id;
+                    history = history.filter(item => item.id !== id);
+                    localStorage.setItem('urlShortenerHistory', JSON.stringify(history));
+                    updateHistoryTable();
+                }
+            });
+
+            updateHistoryTable();
+
+            urlInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent default form submission
+                    shortenBtn.click(); // Trigger the shorten button click
+                }
+            });
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+
+</html>
