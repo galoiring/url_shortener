@@ -6,13 +6,12 @@ import string
 class URL(models.Model):
     original_url = models.URLField()
     short_code = models.CharField(max_length=10, unique=True)
-    hits = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    hits = models.PositiveIntegerField(default=0)
 
     @classmethod
     def generate_short_code(cls):
-        """Generate a random 7-character code"""
-        length = 7
+        length = 6
         while True:
             code = ''.join(random.choices(
                 string.ascii_letters + string.digits, k=length))

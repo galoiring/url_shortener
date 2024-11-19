@@ -17,11 +17,14 @@
     <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl p-6">
         <h1 class="text-2xl font-bold text-center text-blue-600 mb-6">URL Shortener</h1>
 
-        <div class="flex items-center space-x-2 mb-4">
-            <input type="text" id="urlInput" placeholder="Enter your URL here (e.g., google.com)"
-                class="flex-grow p-2 border rounded">
-            <button id="shortenBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Shorten</button>
-        </div>
+        <form id="urlForm">
+            <div class="flex items-center space-x-2 mb-4">
+                <input type="url" id="urlInput" placeholder="Enter URL to shorten" required
+                    class="flex-grow p-2 border rounded">
+                <button id="shortenBtn"
+                    class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Shorten</button>
+            </div>
+        </form>
 
         <div id="resultContainer" class="hidden bg-gray-100 p-3 rounded-md mb-4">
             <a id="shortUrl" href="#" target="_blank" class="text-blue-600 hover:underline mr-2"></a>
@@ -221,11 +224,38 @@
 
             updateHistoryTable();
 
-            urlInput.addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault(); // Prevent default form submission
-                    shortenBtn.click(); // Trigger the shorten button click
+            document.getElementById('urlForm').addEventListener('submit', function (e) {
+                e.preventDefault(); // Prevent the default form submission
+
+                const urlInput = document.getElementById('urlInput');
+                const url = urlInput.value.trim();
+
+                if (!url) {
+                    alert('Please enter a URL');
+                    return;
                 }
+
+                fetch('/create/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(), // Make sure you have this function
+                    },
+                    body: JSON.stringify({ url: url })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error);
+                        } else {
+                            addToTable(url, data.short_url);
+                            urlInput.value = '';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while shortening the URL');
+                    });
             });
         });
 
